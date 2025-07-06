@@ -1,0 +1,72 @@
+# ConverSync - Meeting Assistant .gitignore
+
+# Environment variables (contains API keys)
+.env
+.env.local
+.env.production
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+conversync-env/
+.venv/
+venv/
+env/
+ENV/
+
+# Project-specific directories with user data
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+temp/*
+!temp/.gitkeep
+
+# Generated files
+*.pdf
+*.log
+
+# Media files (can be large)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.ogg
+*.webm
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Package manager files
+uv.lock
+pip-log.txt
+
+# Test files and coverage
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

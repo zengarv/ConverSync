@@ -1,0 +1,9 @@
+flask==2.3.3
+flask-cors==4.0.0
+groq==0.4.1
+moviepy==1.0.3
+google-generativeai==0.3.2
+reportlab==4.0.4
+python-dotenv==1.0.0
+werkzeug==2.3.7
+pathlib2==2.3.7.post1
