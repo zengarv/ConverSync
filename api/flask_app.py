@@ -390,15 +390,17 @@ def send_chat_message(session_id):
         
         # Create context-aware prompt
         context_prompt = f"""
-        You are a helpful meeting assistant. You have access to the transcript of a recent meeting.
-        Please answer the user's question based on the meeting content.
+        You are a helpful AI assistant. You have access to the transcript of a recent meeting, but you can also answer general questions and have normal conversations.
         
-        Meeting Transcript:
+        If the user's question is related to the meeting, please provide a detailed answer based on the meeting content.
+        If the user's question is not related to the meeting, feel free to answer it as a helpful AI assistant would.
+        
+        Meeting Transcript (for reference):
         {transcript}
         
-        User Question: {user_message}
+        User Message: {user_message}
         
-        Please provide a helpful and accurate response based on the meeting content:
+        Please provide a helpful response. If the question is about the meeting, use the transcript above. Otherwise, answer as a knowledgeable AI assistant:
         """
         
         # Get response from Gemini

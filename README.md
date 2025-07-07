@@ -6,10 +6,14 @@ A comprehensive meeting assistant that automatically processes meeting recording
 
 - **Video to Audio Conversion**: Convert MP4 videos to MP3 audio files
 - **Audio Transcription**: Transcribe audio using Groq's Whisper API
+- **Speech-to-Text**: Real-time voice input with Web Speech API and Groq Whisper fallback
+- **Text-to-Speech**: High-quality voice synthesis using Groq TTS with browser fallback
 - **AI Summarization**: Generate structured meeting summaries using Google's Gemini AI
+- **Interactive Chat**: Ask questions about meeting content with voice input/output
 - **PDF Generation**: Create professional meeting minutes PDFs
 - **Email Integration**: Automatically send meeting minutes to participants
 - **RESTful API**: Flask-based API for web application integration
+- **Session Management**: Automatic file cleanup and session management
 
 ## Project Structure
 
@@ -27,11 +31,14 @@ conversync/
 │   ├── media_converter.py    # Video/audio conversion
 │   ├── transcription_service.py  # Audio transcription
 │   ├── summarization_service.py  # AI summarization
+│   ├── tts_service.py        # Text-to-Speech with Groq TTS
 │   ├── pdf_service.py        # PDF generation
 │   └── email_service.py      # Email functionality
 ├── uploads/                  # Upload directory (created automatically)
 ├── outputs/                  # Output directory (created automatically)
-├── temp/                     # Temporary files (created automatically)
+├── temp/                     # Temporary files & TTS audio (created automatically)
+├── frontend/                 # Web interface
+│   └── app.html             # Interactive chat interface with voice features
 ├── .env                      # Environment variables
 ├── .env.example              # Environment variables template
 ├── requirements.txt          # Python dependencies
@@ -125,13 +132,25 @@ print(f"PDF generated: {results['pdf_file']}")
 
 2. **API Endpoints**:
 
+   **Core Processing:**
    - **Health Check**: `GET /health`
    - **Process Video**: `POST /process-video`
    - **Process Audio**: `POST /process-audio`
    - **Process Transcript**: `POST /process-transcript`
    - **Transcribe Only**: `POST /transcribe-only`
+   - **Test Transcript**: `POST /test-transcript`
    - **Download File**: `GET /download/<filename>`
    - **Supported Formats**: `GET /supported-formats`
+
+   **Interactive Chat:**
+   - **Start Chat**: `POST /chat/start`
+   - **Send Message**: `POST /chat/<session_id>/message`
+   - **Generate PDF**: `POST /chat/<session_id>/generate-minutes`
+   - **Send Email**: `POST /chat/<session_id>/send-email`
+   - **Text-to-Speech**: `POST /chat/<session_id>/tts`
+   - **Speech-to-Text**: `POST /speech-to-text`
+   - **Session Heartbeat**: `POST /chat/<session_id>/heartbeat`
+   - **Close Session**: `POST /chat/<session_id>/close`
 
 3. **Example API Usage**:
 
@@ -157,6 +176,33 @@ print(f"PDF generated: {results['pdf_file']}")
      }' \
      http://localhost:5000/process-transcript
    ```
+
+### Interactive Chat Interface
+
+ConverSync now includes a web-based chat interface with voice capabilities:
+
+1. **Start the server**:
+   ```bash
+   python api/flask_app.py
+   ```
+
+2. **Open the web interface**:
+   ```
+   http://localhost:5000
+   ```
+
+3. **Features**:
+   - Upload meeting recordings or use test transcript
+   - Interactive chat about meeting content
+   - Voice input with automatic speech-to-text
+   - Text-to-speech responses using high-quality Groq TTS
+   - Generate PDFs and send emails directly from chat
+   - Automatic session cleanup and file management
+
+4. **Voice Features**:
+   - **Speech Input**: Click the microphone button to speak
+   - **Text-to-Speech**: Toggle the speaker button to hear responses
+   - **Fallback Support**: Automatic fallback between Web Speech API and server-side processing
 
 ## API Reference
 
@@ -235,6 +281,95 @@ Transcribe audio/video file without generating summary.
 }
 ```
 
+### Interactive Chat Endpoints
+
+**POST** `/chat/start`
+
+Start a new chat session with a transcript.
+
+**JSON Body:**
+```json
+{
+  "transcript": "Meeting transcript text..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "session_id": "unique-session-id",
+  "message": "Chat session started successfully"
+}
+```
+
+**POST** `/chat/<session_id>/message`
+
+Send a message to the chat session.
+
+**JSON Body:**
+```json
+{
+  "message": "What were the main action items?"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "response": "The main action items were..."
+}
+```
+
+**POST** `/chat/<session_id>/tts`
+
+Convert text to speech using Groq TTS.
+
+**JSON Body:**
+```json
+{
+  "text": "Text to convert to speech"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "audio_url": "/temp/audio_file.mp3"
+}
+```
+
+**POST** `/speech-to-text`
+
+Convert speech to text using Groq Whisper.
+
+**Form Data:**
+- `audio` (file): Audio file (WAV, MP3, etc.)
+
+**Response:**
+```json
+{
+  "success": true,
+  "text": "Transcribed text from audio"
+}
+```
+
+**POST** `/test-transcript`
+
+Load a test transcript for demonstration.
+
+**Response:**
+```json
+{
+  "success": true,
+  "session_id": "test-session-id",
+  "transcript": "Sample meeting transcript...",
+  "message": "Test transcript loaded successfully"
+}
+```
+
 ## Services Overview
 
 ### MediaConverter
@@ -251,6 +386,12 @@ Transcribe audio/video file without generating summary.
 - Generate structured meeting summaries using Gemini AI
 - Extract participants, decisions, action items
 - Custom summarization prompts
+
+### TTSService
+- High-quality text-to-speech using Groq TTS API
+- Automatic file cleanup and session management
+- Fallback to browser speech synthesis
+- Support for multiple voice models
 
 ### PDFService
 - Create professional meeting minutes PDFs
@@ -269,8 +410,10 @@ All configuration is managed through environment variables and the `Config` clas
 - **API Keys**: Groq and Gemini API keys
 - **Email Settings**: SMTP configuration
 - **File Paths**: Upload, output, and temporary directories
-- **Model Settings**: AI model selection
+- **Model Settings**: AI model selection for transcription, TTS, and summarization
 - **PDF Settings**: Company branding options
+- **Session Management**: Cleanup intervals and session timeouts
+- **TTS Settings**: Voice model selection and audio quality
 
 ## Error Handling
 
@@ -302,6 +445,11 @@ The Flask development server will run on `http://localhost:5000` with debug mode
 
 ### Audio Files
 - MP3, WAV, FLAC, M4A, OGG, WEBM
+
+### Voice Input
+- Web Speech API (real-time)
+- MediaRecorder API (server-side processing)
+- Microphone input with automatic format conversion
 
 ## Limitations
 
