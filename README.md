@@ -6,14 +6,12 @@ A comprehensive meeting assistant that automatically processes meeting recording
 
 - **Video to Audio Conversion**: Convert MP4 videos to MP3 audio files
 - **Audio Transcription**: Transcribe audio using Groq's Whisper API
-- **Speech-to-Text**: Real-time voice input with Web Speech API and Groq Whisper fallback
 - **Text-to-Speech**: High-quality voice synthesis using Groq TTS with browser fallback
 - **AI Summarization**: Generate structured meeting summaries using Google's Gemini AI
 - **Interactive Chat**: Ask questions about meeting content with voice input/output
 - **PDF Generation**: Create professional meeting minutes PDFs
 - **Email Integration**: Automatically send meeting minutes to participants
 - **RESTful API**: Flask-based API for web application integration
-- **Session Management**: Automatic file cleanup and session management
 
 ## Project Structure
 
@@ -148,9 +146,6 @@ print(f"PDF generated: {results['pdf_file']}")
    - **Generate PDF**: `POST /chat/<session_id>/generate-minutes`
    - **Send Email**: `POST /chat/<session_id>/send-email`
    - **Text-to-Speech**: `POST /chat/<session_id>/tts`
-   - **Speech-to-Text**: `POST /speech-to-text`
-   - **Session Heartbeat**: `POST /chat/<session_id>/heartbeat`
-   - **Close Session**: `POST /chat/<session_id>/close`
 
 3. **Example API Usage**:
 
@@ -194,13 +189,11 @@ ConverSync now includes a web-based chat interface with voice capabilities:
 3. **Features**:
    - Upload meeting recordings or use test transcript
    - Interactive chat about meeting content
-   - Voice input with automatic speech-to-text
    - Text-to-speech responses using high-quality Groq TTS
    - Generate PDFs and send emails directly from chat
    - Automatic session cleanup and file management
 
 4. **Voice Features**:
-   - **Speech Input**: Click the microphone button to speak
    - **Text-to-Speech**: Toggle the speaker button to hear responses
    - **Fallback Support**: Automatic fallback between Web Speech API and server-side processing
 
@@ -412,7 +405,6 @@ All configuration is managed through environment variables and the `Config` clas
 - **File Paths**: Upload, output, and temporary directories
 - **Model Settings**: AI model selection for transcription, TTS, and summarization
 - **PDF Settings**: Company branding options
-- **Session Management**: Cleanup intervals and session timeouts
 - **TTS Settings**: Voice model selection and audio quality
 
 ## Error Handling
@@ -446,13 +438,7 @@ The Flask development server will run on `http://localhost:5000` with debug mode
 ### Audio Files
 - MP3, WAV, FLAC, M4A, OGG, WEBM
 
-### Voice Input
-- Web Speech API (real-time)
-- MediaRecorder API (server-side processing)
-- Microphone input with automatic format conversion
-
 ## Limitations
-
 - Maximum file size: 500MB
 - Video processing requires sufficient disk space
 - API rate limits apply to external services
