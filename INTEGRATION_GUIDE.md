@@ -5,16 +5,19 @@ This guide explains how to use the fully integrated ConverSync meeting assistant
 ## Features
 
 ### 🚀 Complete Workflow
-1. **Upload Meeting Recording**: Upload video/audio files via the web interface
+1. **Upload Meeting Recording**: Upload video/audio files via the web interface OR use test transcript for testing
 2. **Automatic Transcription**: Files are converted to audio and transcribed using Groq
 3. **AI Chat Interface**: Chat with Gemini about meeting content using the transcript as context
-4. **PDF Generation**: Generate comprehensive meeting minutes as PDF
-5. **Email Distribution**: Send meeting minutes to participants automatically
+4. **Text-to-Speech**: Enable TTS to hear bot responses read aloud using Groq's TTS API
+5. **PDF Generation**: Generate comprehensive meeting minutes as PDF
+6. **Email Distribution**: Send meeting minutes to participants automatically
 
 ### 🎯 Key Capabilities
 - **Smart Meeting Minutes**: Automatically generate comprehensive meeting summaries
 - **Automated Mail Service**: Send personalized follow-up emails to participants
 - **Follow-Up Questions**: Ask detailed questions about meeting content
+- **Text-to-Speech**: Listen to responses with high-quality voice synthesis
+- **Test Mode**: Use pre-generated transcript for testing without uploading files
 - **Multi-format Support**: Supports video (mp4, avi, mov, mkv, wmv) and audio (mp3, wav, flac, m4a, ogg, webm)
 
 ## How to Use
@@ -30,13 +33,19 @@ The server will start at `http://localhost:5000`
 ### 2. Open the Frontend
 Open `frontend/app.html` in your web browser. The page will connect to the backend automatically.
 
-### 3. Upload a Meeting Recording
+### 3. Upload a Meeting Recording OR Use Test Transcript
+**Option A: Upload File**
 1. Click on the upload area or drag and drop your meeting recording
 2. Click "Upload" to process the file
 3. The system will:
    - Convert video to audio (if needed)
    - Transcribe the audio using Groq
    - Start a chat session with the transcript as context
+
+**Option B: Use Test Transcript (for testing)**
+1. Click "Use Test Transcript" button (green button below upload)
+2. The system will instantly load a pre-generated meeting transcript
+3. You'll be taken directly to the chat interface
 
 ### 4. Chat with Your Meeting Assistant
 Once processing is complete, you'll be taken to the chat interface where you can:
@@ -46,6 +55,12 @@ Once processing is complete, you'll be taken to the chat interface where you can
 - "Who was assigned the task of updating the project timeline?"
 - "What are the action items and their deadlines?"
 - "Can you summarize the discussion about the budget?"
+
+#### Enable Text-to-Speech
+1. Click the 🔊 button next to the send button to enable TTS
+2. When enabled, the button turns red (🔇) and all bot responses will be read aloud
+3. Click again to disable TTS
+4. High-quality voice synthesis powered by Groq's TTS API
 
 #### Generate PDF Minutes
 1. Click "📄 Generate PDF"
@@ -75,7 +90,11 @@ Once processing is complete, you'll be taken to the chat interface where you can
 - `POST /chat/{session_id}/message` - Send message in chat session
 - `POST /chat/{session_id}/generate-minutes` - Generate PDF minutes
 - `POST /chat/{session_id}/send-email` - Send meeting minutes via email
+- `POST /chat/{session_id}/tts` - Generate text-to-speech audio
 - `GET /chat/{session_id}/history` - Get chat history
+
+### Testing & Development
+- `POST /test-transcript` - Load pre-generated test transcript for development
 
 ### Utilities
 - `GET /health` - Health check

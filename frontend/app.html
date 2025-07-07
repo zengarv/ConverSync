@@ -505,7 +505,7 @@
         
         .chat-input {
             width: 100%;
-            padding: 1rem 3.5rem 1rem 1.5rem;
+            padding: 1rem 7rem 1rem 1.5rem;
             border: 2px solid rgba(124, 58, 237, 0.3);
             border-radius: 25px;
             background: rgba(255, 255, 255, 0.05);
@@ -546,6 +546,39 @@
             justify-content: center;
             transition: all 0.3s ease;
             font-size: 1.1rem;
+        }
+        
+        .tts-button {
+            position: absolute;
+            right: 52px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #22c55e, #16a34a);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+        
+        .tts-button:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 5px 15px rgba(34, 197, 94, 0.4);
+        }
+        
+        .tts-button.active {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+        }
+        
+        .tts-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .send-button:hover {
@@ -742,7 +775,10 @@
                     </div>
                     <input type="file" id="fileInput" accept="audio/*,video/*" style="display: none;">
                 </div>
-                <button class="upload-btn">Upload</button>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <button class="upload-btn">Upload</button>
+                    <button id="useTestTranscriptBtn" class="upload-btn" style="background: linear-gradient(45deg, #22c55e, #16a34a); font-size: 0.9rem;">Use Test Transcript</button>
+                </div>
             </div>
         </div>
     </section>
@@ -806,6 +842,7 @@
                 <div class="chat-input-container">
                     <div class="chat-input-wrapper">
                         <textarea id="chatInput" class="chat-input" placeholder="Ask me anything about the meeting..." rows="1"></textarea>
+                        <button id="ttsBtn" class="tts-button" title="Toggle Text-to-Speech">🔊</button>
                         <button id="sendBtn" class="send-button">➤</button>
                     </div>
                 </div>
@@ -914,6 +951,8 @@
         // Global variables
         let currentSessionId = null;
         let currentTranscript = null;
+        let ttsEnabled = false;
+        let currentAudio = null;
         
         // File upload functionality
         const uploadBox = document.querySelector('.upload-box');
@@ -1110,73 +1149,141 @@
         
         sendBtn.addEventListener('click', sendMessage);
         
-        async function sendMessage() {
-            const message = chatInput.value.trim();
-            if (!message || !currentSessionId) return;
-            
-            // Add user message to chat
-            addMessage(message, 'user');
-            chatInput.value = '';
-            chatInput.style.height = 'auto';
-            
-            // Show typing indicator
-            showTypingIndicator();
+        // TTS functionality
+        const ttsBtn = document.getElementById('ttsBtn');
+        
+        ttsBtn.addEventListener('click', function() {
+            ttsEnabled = !ttsEnabled;
+            if (ttsEnabled) {
+                ttsBtn.textContent = '🔇';
+                ttsBtn.classList.add('active');
+                ttsBtn.title = 'Disable Text-to-Speech';
+            } else {
+                ttsBtn.textContent = '🔊';
+                ttsBtn.classList.remove('active');
+                ttsBtn.title = 'Enable Text-to-Speech';
+                // Stop current audio if playing
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+            }
+        });
+        
+        async function playTTS(text) {
+            if (!ttsEnabled || !currentSessionId) return;
             
             try {
-                const response = await fetch(`http://localhost:5000/chat/${currentSessionId}/message`, {
+                // Stop current audio if playing
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+                
+                // Try Groq TTS first (now that terms are accepted)
+                const response = await fetch(`http://localhost:5000/chat/${currentSessionId}/tts`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ text })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.audio_url) {
+                    currentAudio = new Audio(`http://localhost:5000${result.audio_url}`);
+                    currentAudio.play().catch(err => {
+                        console.error('Error playing TTS audio:', err);
+                        // Fallback to browser TTS if file playback fails
+                        if ('speechSynthesis' in window) {
+                            const utterance = new SpeechSynthesisUtterance(text);
+                            utterance.rate = 0.9;
+                            utterance.pitch = 1;
+                            utterance.volume = 0.8;
+                            speechSynthesis.speak(utterance);
+                            console.log('Fallback to browser TTS due to playback error');
+                        }
+                    });
+                    console.log('Using Groq TTS (high quality)');
+                } else {
+                    throw new Error(result.error || 'TTS generation failed');
+                }
+                
+            } catch (error) {
+                console.error('TTS Error:', error);
+                // Fallback to browser TTS on any error
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1;
+                    utterance.volume = 0.8;
+                    
+                    // Try to use a nice voice if available
+                    const voices = speechSynthesis.getVoices();
+                    const preferredVoice = voices.find(voice => 
+                        voice.name.includes('Google') || 
+                        voice.name.includes('Microsoft') ||
+                        voice.lang.startsWith('en')
+                    );
+                    if (preferredVoice) {
+                        utterance.voice = preferredVoice;
+                    }
+                    
+                    speechSynthesis.speak(utterance);
+                    console.log('Using browser TTS fallback due to error:', error.message);
+                } else {
+                    console.error('No TTS available');
+                }
+            }
+        }
+        
+        // Test transcript functionality
+        const useTestTranscriptBtn = document.getElementById('useTestTranscriptBtn');
+        
+        useTestTranscriptBtn.addEventListener('click', async function() {
+            try {
+                useTestTranscriptBtn.textContent = 'Loading...';
+                useTestTranscriptBtn.disabled = true;
+                
+                const response = await fetch('http://localhost:5000/test-transcript', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
                 
                 const result = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(result.error || 'Failed to send message');
+                    throw new Error(result.error || 'Failed to load test transcript');
                 }
                 
-                // Hide typing indicator and add bot response
-                hideTypingIndicator();
-                addMessage(result.response, 'bot');
+                // Set session variables
+                currentSessionId = result.session_id;
+                currentTranscript = result.transcript;
+                
+                // Show success and transition to chat
+                useTestTranscriptBtn.textContent = 'Loaded ✓';
+                useTestTranscriptBtn.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+                
+                setTimeout(() => {
+                    openChatInterface();
+                }, 1000);
                 
             } catch (error) {
-                console.error('Error sending message:', error);
-                hideTypingIndicator();
-                addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                console.error('Error loading test transcript:', error);
+                useTestTranscriptBtn.textContent = 'Error - Try Again';
+                useTestTranscriptBtn.style.background = 'linear-gradient(45deg, #ef4444, #dc2626)';
+                useTestTranscriptBtn.disabled = false;
+                alert(error.message);
+                
+                setTimeout(() => {
+                    useTestTranscriptBtn.textContent = 'Use Test Transcript';
+                    useTestTranscriptBtn.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+                }, 3000);
             }
-        }
-        
-        function addMessage(text, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = sender === 'user' ? '👤' : '🤖';
-            
-            const content = document.createElement('div');
-            content.className = 'message-content';
-            const p = document.createElement('p');
-            p.textContent = text;
-            content.appendChild(p);
-            
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(content);
-            
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-        
-        function showTypingIndicator() {
-            typingIndicator.style.display = 'flex';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-        
-        function hideTypingIndicator() {
-            typingIndicator.style.display = 'none';
-        }
+        });
         
         // Modal functionality
         const modal = document.getElementById('optionsModal');
@@ -1393,6 +1500,79 @@
         }
         `;
         document.head.appendChild(styleSheet);
+        
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message || !currentSessionId) return;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch(`http://localhost:5000/chat/${currentSessionId}/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to send message');
+                }
+                
+                // Hide typing indicator and add bot response
+                hideTypingIndicator();
+                addMessage(result.response, 'bot');
+                
+                // Play TTS if enabled
+                if (ttsEnabled) {
+                    playTTS(result.response);
+                }
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                hideTypingIndicator();
+                addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+            }
+        }
+        
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = sender === 'user' ? '👤' : '🤖';
+            
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            const p = document.createElement('p');
+            p.textContent = text;
+            content.appendChild(p);
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'flex';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
     </script>
 </body>
 </html>

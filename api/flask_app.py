@@ -8,6 +8,7 @@ from datetime import datetime
 import uuid
 
 from api.meeting_assistant import MeetingAssistant
+from services.tts_service import TTSService
 from config import Config
 
 app = Flask(__name__, static_folder='../frontend', static_url_path='')
@@ -16,6 +17,9 @@ app.secret_key = 'your-secret-key-change-this'  # Change this in production
 
 # Initialize the meeting assistant
 meeting_assistant = MeetingAssistant()
+
+# Initialize TTS service
+tts_service = TTSService()
 
 # Store active chat sessions
 chat_sessions = {}
@@ -302,6 +306,26 @@ def download_file(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/audio/<path:filename>')
+def serve_audio(filename):
+    """Serve audio files for inline playback."""
+    try:
+        # Check if it's a temp file
+        if filename.startswith('temp/'):
+            file_path = Config.TEMP_FOLDER / filename[5:]  # Remove 'temp/' prefix and use Config.TEMP_FOLDER
+        else:
+            file_path = Config.OUTPUT_FOLDER / filename
+            
+        if file_path.exists():
+            # Determine MIME type based on file extension
+            extension = Path(filename).suffix.lower()
+            mime_type = 'audio/wav' if extension == '.wav' else 'audio/mpeg'
+            return send_file(file_path, mimetype=mime_type, as_attachment=False)
+        else:
+            return jsonify({'error': 'Audio file not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/supported-formats', methods=['GET'])
 def supported_formats():
     """Get supported file formats."""
@@ -503,6 +527,69 @@ def send_meeting_email(session_id):
         print(f"❌ Error in send_meeting_email: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/chat/<session_id>/tts', methods=['POST'])
+def generate_tts(session_id):
+    """Generate TTS audio for given text."""
+    try:
+        if session_id not in chat_sessions:
+            return jsonify({'error': 'Invalid or expired session'}), 404
+        
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({'error': 'Text is required'}), 400
+            
+        text = data['text'].strip()
+        if not text:
+            return jsonify({'error': 'Text cannot be empty'}), 400
+        
+        # Generate TTS audio
+        audio_file = tts_service.generate_speech(text)
+        
+        # Convert to relative path for audio serving
+        audio_filename = Path(audio_file).name
+        
+        return jsonify({
+            'success': True,
+            'audio_url': f'/audio/temp/{audio_filename}',
+            'message': 'TTS audio generated successfully'
+        })
+        
+    except Exception as e:
+        print(f"TTS Error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/test-transcript', methods=['POST'])
+def use_test_transcript():
+    """Use pre-generated test transcript for testing purposes."""
+    try:
+        # Read the test transcript
+        test_transcript_path = Path(Config.OUTPUT_FOLDER) / 'test_transcript.txt'
+        
+        if not test_transcript_path.exists():
+            return jsonify({'error': 'Test transcript not found'}), 404
+            
+        with open(test_transcript_path, 'r', encoding='utf-8') as f:
+            transcript = f.read()
+        
+        # Create a new chat session with the test transcript
+        session_id = str(uuid.uuid4())
+        chat_sessions[session_id] = {
+            'transcript': transcript,
+            'messages': [],
+            'created_at': datetime.now().isoformat()
+        }
+        
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'transcript': transcript,
+            'message': 'Test transcript loaded successfully'
+        })
+        
+    except Exception as e:
+        print(f"Test transcript error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/chat/<session_id>/history', methods=['GET'])
