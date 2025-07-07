@@ -365,6 +365,9 @@ def start_chat_session():
             'messages': []
         }
         
+        print(f"✅ Created new chat session: {session_id}")
+        print(f"📝 Session has transcript of length: {len(data['transcript'])}")
+        
         return jsonify({
             'success': True,
             'session_id': session_id,
@@ -426,7 +429,11 @@ def send_chat_message(session_id):
 def generate_meeting_minutes(session_id):
     """Generate PDF meeting minutes for the session."""
     try:
+        print(f"🔄 PDF generation requested for session: {session_id}")
+        print(f"🔄 Available sessions: {list(chat_sessions.keys())}")
+        
         if session_id not in chat_sessions:
+            print(f"❌ Session {session_id} not found in active sessions")
             return jsonify({'error': 'Invalid or expired session'}), 404
         
         data = request.get_json()
@@ -562,11 +569,35 @@ def generate_tts(session_id):
         print(f"TTS Error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/test-transcript', methods=['POST'])
-def use_test_transcript():
-    """Use pre-generated test transcript for testing purposes."""
+@app.route('/chat/<session_id>/history', methods=['GET'])
+def get_chat_history(session_id):
+    """Get chat history for a session."""
     try:
-        # Read the test transcript
+        if session_id not in chat_sessions:
+            return jsonify({'error': 'Invalid or expired session'}), 404
+        
+        return jsonify({
+            'success': True,
+            'messages': chat_sessions[session_id]['messages'],
+            'created_at': chat_sessions[session_id]['created_at']
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/debug/sessions', methods=['GET'])
+def debug_sessions():
+    """Debug endpoint to check active sessions."""
+    return jsonify({
+        'active_sessions': list(chat_sessions.keys()),
+        'session_count': len(chat_sessions),
+        'sessions_detail': {k: {'created_at': v['created_at'], 'transcript_length': len(v['transcript']), 'message_count': len(v['messages'])} for k, v in chat_sessions.items()}
+    })
+
+@app.route('/debug/create-test-session', methods=['POST'])
+def create_test_session():
+    """Create a test session with the existing test transcript."""
+    try:
         test_transcript_path = Path(Config.OUTPUT_FOLDER) / 'test_transcript.txt'
         
         if not test_transcript_path.exists():
@@ -583,31 +614,17 @@ def use_test_transcript():
             'created_at': datetime.now().isoformat()
         }
         
+        print(f"✅ Created debug test session: {session_id}")
+        
         return jsonify({
             'success': True,
             'session_id': session_id,
             'transcript': transcript,
-            'message': 'Test transcript loaded successfully'
+            'message': 'Debug test session created successfully'
         })
         
     except Exception as e:
-        print(f"Test transcript error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/chat/<session_id>/history', methods=['GET'])
-def get_chat_history(session_id):
-    """Get chat history for a session."""
-    try:
-        if session_id not in chat_sessions:
-            return jsonify({'error': 'Invalid or expired session'}), 404
-        
-        return jsonify({
-            'success': True,
-            'messages': chat_sessions[session_id]['messages'],
-            'created_at': chat_sessions[session_id]['created_at']
-        })
-        
-    except Exception as e:
+        print(f"Debug test session error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def main():

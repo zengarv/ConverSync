@@ -11,6 +11,16 @@
             box-sizing: border-box;
         }
         
+        /* Hide scrollbars globally while maintaining scroll functionality */
+        * {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* Internet Explorer and Edge */
+        }
+        
+        *::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, and Opera */
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
@@ -777,7 +787,7 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <button class="upload-btn">Upload</button>
-                    <button id="useTestTranscriptBtn" class="upload-btn" style="background: linear-gradient(45deg, #22c55e, #16a34a); font-size: 0.9rem;">Use Test Transcript</button>
+                    <button id="debugTestBtn" class="upload-btn" style="background: linear-gradient(45deg, #ff9800, #f57c00); font-size: 0.9rem;">Create Test Session (Debug)</button>
                 </div>
             </div>
         </div>
@@ -1103,6 +1113,55 @@
             }
         });
         
+        // Debug test session functionality (temporary for testing)
+        const debugTestBtn = document.getElementById('debugTestBtn');
+        
+        debugTestBtn.addEventListener('click', async function() {
+            try {
+                debugTestBtn.textContent = 'Creating...';
+                debugTestBtn.disabled = true;
+                
+                const response = await fetch('http://localhost:5000/debug/create-test-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to create test session');
+                }
+                
+                // Set session variables
+                currentSessionId = result.session_id;
+                currentTranscript = result.transcript;
+                
+                console.log('Debug session created:', currentSessionId);
+                
+                // Show success and transition to chat
+                debugTestBtn.textContent = 'Session Created ✓';
+                debugTestBtn.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
+                
+                setTimeout(() => {
+                    openChatInterface();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error creating debug session:', error);
+                debugTestBtn.textContent = 'Error - Try Again';
+                debugTestBtn.style.background = 'linear-gradient(45deg, #ef4444, #dc2626)';
+                debugTestBtn.disabled = false;
+                alert(error.message);
+                
+                setTimeout(() => {
+                    debugTestBtn.textContent = 'Create Test Session (Debug)';
+                    debugTestBtn.style.background = 'linear-gradient(45deg, #ff9800, #f57c00)';
+                }, 3000);
+            }
+        });
+
         // Chat Interface Functions
         function openChatInterface() {
             document.getElementById('chatInterface').style.display = 'block';
@@ -1238,53 +1297,6 @@
             }
         }
         
-        // Test transcript functionality
-        const useTestTranscriptBtn = document.getElementById('useTestTranscriptBtn');
-        
-        useTestTranscriptBtn.addEventListener('click', async function() {
-            try {
-                useTestTranscriptBtn.textContent = 'Loading...';
-                useTestTranscriptBtn.disabled = true;
-                
-                const response = await fetch('http://localhost:5000/test-transcript', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(result.error || 'Failed to load test transcript');
-                }
-                
-                // Set session variables
-                currentSessionId = result.session_id;
-                currentTranscript = result.transcript;
-                
-                // Show success and transition to chat
-                useTestTranscriptBtn.textContent = 'Loaded ✓';
-                useTestTranscriptBtn.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
-                
-                setTimeout(() => {
-                    openChatInterface();
-                }, 1000);
-                
-            } catch (error) {
-                console.error('Error loading test transcript:', error);
-                useTestTranscriptBtn.textContent = 'Error - Try Again';
-                useTestTranscriptBtn.style.background = 'linear-gradient(45deg, #ef4444, #dc2626)';
-                useTestTranscriptBtn.disabled = false;
-                alert(error.message);
-                
-                setTimeout(() => {
-                    useTestTranscriptBtn.textContent = 'Use Test Transcript';
-                    useTestTranscriptBtn.style.background = 'linear-gradient(45deg, #22c55e, #16a34a)';
-                }, 3000);
-            }
-        });
-        
         // Modal functionality
         const modal = document.getElementById('optionsModal');
         const modalTitle = document.getElementById('modalTitle');
@@ -1336,7 +1348,14 @@
             }
         };
 
-        document.getElementById('generatePdfBtn').addEventListener('click', () => openModal('pdf'));
+        document.getElementById('generatePdfBtn').addEventListener('click', () => {
+            console.log('Generate PDF clicked. Current session ID:', currentSessionId);
+            if (!currentSessionId) {
+                alert('No active session found. Please upload and transcribe a file first.');
+                return;
+            }
+            openModal('pdf');
+        });
         document.getElementById('sendEmailBtn').addEventListener('click', () => {
             console.log('Send Email clicked. Current session ID:', currentSessionId);
             if (!currentSessionId) {

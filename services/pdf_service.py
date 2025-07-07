@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
@@ -11,6 +12,105 @@ class PDFService:
     
     def __init__(self):
         Config.ensure_directories()
+    
+    def _parse_formatted_text(self, text, canvas_obj, x, y, max_width, regular_font="Helvetica", bold_font="Helvetica-Bold", font_size=11, line_height=14):
+        """
+        Parse text with **bold** formatting and render it properly.
+        
+        Args:
+            text (str): Text with markdown formatting
+            canvas_obj: ReportLab canvas object
+            x, y (int): Starting position
+            max_width (int): Maximum width for text wrapping
+            regular_font, bold_font (str): Font names
+            font_size (int): Font size
+            line_height (int): Line height
+            
+        Returns:
+            int: Final y position after rendering
+        """
+        # Split text into paragraphs
+        paragraphs = text.split('\n\n')
+        current_y = y
+        
+        for paragraph in paragraphs:
+            if not paragraph.strip():
+                continue
+                
+            # Handle line breaks within paragraphs
+            lines_in_paragraph = paragraph.split('\n')
+            
+            for line_text in lines_in_paragraph:
+                if not line_text.strip():
+                    current_y -= line_height * 0.5  # Half line for empty lines
+                    continue
+                
+                # Parse bold formatting in this line
+                parts = re.split(r'\*\*(.*?)\*\*', line_text)
+                
+                # Calculate if this line fits, considering word wrapping
+                line_parts_formatted = []
+                for i, part in enumerate(parts):
+                    if not part:
+                        continue
+                    is_bold = i % 2 == 1
+                    font = bold_font if is_bold else regular_font
+                    line_parts_formatted.append((part, font, is_bold))
+                
+                # Simple line rendering - split long lines if needed
+                words = []
+                for part, font, is_bold in line_parts_formatted:
+                    part_words = part.split()
+                    for word in part_words:
+                        words.append((word, font, is_bold))
+                
+                # Render words, wrapping as needed
+                current_line_words = []
+                current_line_width = 0
+                
+                for word, font, is_bold in words:
+                    word_width = canvas_obj.stringWidth(word + " ", font, font_size)
+                    
+                    if current_line_width + word_width > max_width and current_line_words:
+                        # Render current line
+                        if current_y < 60:  # Need new page
+                            return current_y
+                        
+                        # Render the line
+                        x_offset = x
+                        canvas_obj.setFont(regular_font, font_size)  # Reset to regular
+                        
+                        for w, f, is_b in current_line_words:
+                            canvas_obj.setFont(f, font_size)
+                            canvas_obj.drawString(x_offset, current_y, w)
+                            x_offset += canvas_obj.stringWidth(w + " ", f, font_size)
+                        
+                        current_y -= line_height
+                        current_line_words = [(word, font, is_bold)]
+                        current_line_width = word_width
+                    else:
+                        current_line_words.append((word, font, is_bold))
+                        current_line_width += word_width
+                
+                # Render the last line if there are words
+                if current_line_words:
+                    if current_y < 60:  # Need new page
+                        return current_y
+                    
+                    x_offset = x
+                    canvas_obj.setFont(regular_font, font_size)  # Reset to regular
+                    
+                    for word, font, is_bold in current_line_words:
+                        canvas_obj.setFont(font, font_size)
+                        canvas_obj.drawString(x_offset, current_y, word)
+                        x_offset += canvas_obj.stringWidth(word + " ", font, font_size)
+                    
+                    current_y -= line_height
+            
+            # Add extra space between paragraphs
+            current_y -= line_height * 0.3
+        
+        return current_y
     
     def create_minutes_pdf(self, sections: dict,
                           company: str = None,
@@ -101,21 +201,25 @@ class PDFService:
             
             c.setFont("Helvetica-Bold", 13)
             c.drawString(50, y, title)
-            y -= 20
+            y -= 25
             
-            c.setFont("Helvetica", 11)
-            lines = simpleSplit(body, "Helvetica", 11, width - 100)
-            for line in lines:
-                if y < 60:  # Need space for footer
-                    footer()
-                    c.showPage()
-                    page_num += 1
-                    y = header()
-                
-                c.drawString(50, y, line)
-                y -= 14
+            # Use the formatted text parser for body content
+            final_y = self._parse_formatted_text(
+                body, c, 50, y, width - 100,
+                regular_font="Helvetica", 
+                bold_font="Helvetica-Bold",
+                font_size=11, 
+                line_height=14
+            )
             
-            return y - 15
+            # Check if we need a new page during text rendering
+            if final_y < 60:
+                footer()
+                c.showPage()
+                page_num += 1
+                final_y = header()
+            
+            return final_y - 15
         
         # First page
         y_cursor = header()
@@ -156,17 +260,15 @@ class PDFService:
         c.setFont("Helvetica-Bold", 16)
         c.drawCentredString(width / 2, height - 50, title)
         
-        # Content
+        # Content with formatted text
         y = height - 100
-        c.setFont("Helvetica", 11)
-        lines = simpleSplit(content, "Helvetica", 11, width - 100)
-        
-        for line in lines:
-            if y < 50:
-                c.showPage()
-                y = height - 50
-            c.drawString(50, y, line)
-            y -= 14
+        final_y = self._parse_formatted_text(
+            content, c, 50, y, width - 100,
+            regular_font="Helvetica", 
+            bold_font="Helvetica-Bold",
+            font_size=11, 
+            line_height=14
+        )
         
         c.save()
         return output_file

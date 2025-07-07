@@ -138,7 +138,6 @@ print(f"PDF generated: {results['pdf_file']}")
    - **Process Audio**: `POST /process-audio`
    - **Process Transcript**: `POST /process-transcript`
    - **Transcribe Only**: `POST /transcribe-only`
-   - **Test Transcript**: `POST /test-transcript`
    - **Download File**: `GET /download/<filename>`
    - **Supported Formats**: `GET /supported-formats`
 
@@ -192,7 +191,7 @@ ConverSync now includes a web-based chat interface with voice capabilities:
    ```
 
 3. **Features**:
-   - Upload meeting recordings or use test transcript
+   - Upload meeting recordings for processing
    - Interactive chat about meeting content
    - Voice input with automatic speech-to-text
    - Text-to-speech responses using high-quality Groq TTS
@@ -353,20 +352,6 @@ Convert speech to text using Groq Whisper.
 {
   "success": true,
   "text": "Transcribed text from audio"
-}
-```
-
-**POST** `/test-transcript`
-
-Load a test transcript for demonstration.
-
-**Response:**
-```json
-{
-  "success": true,
-  "session_id": "test-session-id",
-  "transcript": "Sample meeting transcript...",
-  "message": "Test transcript loaded successfully"
 }
 ```
 
