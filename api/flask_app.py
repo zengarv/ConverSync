@@ -11,7 +11,7 @@ from api.meeting_assistant import MeetingAssistant
 from services.tts_service import TTSService
 from config import Config
 
-app = Flask(__name__, static_folder='../frontend', static_url_path='')
+app = Flask(__name__, static_folder='../frontend/dist', static_url_path='')
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 app.secret_key = 'your-secret-key-change-this'  # Change this in production
 
@@ -51,13 +51,17 @@ def allowed_file(filename, allowed_extensions):
 
 @app.route('/', methods=['GET'])
 def serve_frontend():
-    """Serve the main frontend application."""
-    return send_from_directory(app.static_folder, 'app.html')
+    """Serve the main React frontend application."""
+    return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/test', methods=['GET'])
-def serve_test_page():
-    """Serve the test page."""
-    return send_from_directory(app.static_folder, 'test.html')
+@app.route('/<path:path>', methods=['GET'])
+def serve_static_files(path):
+    """Serve static files from React build."""
+    if os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        # For client-side routing, serve index.html for unknown routes
+        return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api', methods=['GET'])
 def api_info():
@@ -66,14 +70,18 @@ def api_info():
         'message': 'ConverSync Meeting Assistant API',
         'version': '1.0.0',
         'frontend_url': 'http://localhost:5000/',
-        'test_url': 'http://localhost:5000/test',
+        'frontend_type': 'React with Vite',
         'endpoints': {
             'health': '/health',
+            'process_video': '/process-video',
+            'process_audio': '/process-audio',
+            'process_transcript': '/process-transcript',
             'transcribe': '/transcribe-only',
             'chat_start': '/chat/start',
             'chat_message': '/chat/{session_id}/message',
             'generate_pdf': '/chat/{session_id}/generate-minutes',
             'send_email': '/chat/{session_id}/send-email',
+            'tts': '/chat/{session_id}/tts',
             'supported_formats': '/supported-formats'
         }
     })
@@ -486,18 +494,32 @@ def send_meeting_email(session_id):
         data = request.get_json()
         print(f"🔄 Received data: {data}")
         
-        if not data or 'recipients' not in data:
+        if not data:
+            print(f"❌ No data received")
+            return jsonify({'error': 'No data provided'}), 400
+            
+        if 'recipients' not in data:
             print(f"❌ No recipients provided in data: {data}")
             return jsonify({'error': 'No recipients provided'}), 400
         
-        transcript = chat_sessions[session_id]['transcript']
         recipients = data['recipients']
+        if not recipients or len(recipients) == 0:
+            print(f"❌ Empty recipients list: {recipients}")
+            return jsonify({'error': 'Recipients list is empty'}), 400
+        
+        transcript = chat_sessions[session_id]['transcript']
         
         # Get meeting details
         meeting_title = data.get('meeting_title', 'Meeting Minutes')
         meeting_date = data.get('meeting_date', datetime.now().strftime('%Y-%m-%d'))
         company_name = data.get('company_name', 'Company')
         custom_message = data.get('custom_message', '')
+        
+        print(f"🔄 Processing email with:")
+        print(f"   - Recipients: {recipients}")
+        print(f"   - Title: {meeting_title}")
+        print(f"   - Date: {meeting_date}")
+        print(f"   - Company: {company_name}")
         
         # Generate summary and PDF
         print(f"🔄 Generating summary for email...")
@@ -512,7 +534,11 @@ def send_meeting_email(session_id):
         )
         
         if not pdf_result.get('success'):
-            raise Exception(pdf_result.get('error', 'PDF generation failed'))
+            error_msg = pdf_result.get('error', 'PDF generation failed')
+            print(f"❌ PDF generation failed: {error_msg}")
+            return jsonify({'error': f'PDF generation failed: {error_msg}'}), 500
+        
+        print(f"✅ PDF created: {pdf_result['pdf_file']}")
         
         # Send emails
         print(f"🔄 Sending emails to {len(recipients)} recipients...")
@@ -524,13 +550,22 @@ def send_meeting_email(session_id):
             custom_message=custom_message
         )
         
-        print(f"🔄 Email result: {email_result}")
+        print(f"� Email result: {email_result}")
         
-        return jsonify({
-            'success': True,
-            'email_result': email_result,
-            'pdf_file': pdf_result['pdf_file']
-        })
+        if email_result.get('success'):
+            return jsonify({
+                'success': True,
+                'data': {
+                    'message': f"Email sent successfully to {len(recipients)} recipients",
+                    'email_result': email_result,
+                    'pdf_file': pdf_result['pdf_file']
+                },
+                'message': f"Email sent successfully to {len(recipients)} recipients"
+            })
+        else:
+            error_msg = email_result.get('error', 'Unknown email error')
+            print(f"❌ Email sending failed: {error_msg}")
+            return jsonify({'success': False, 'error': f'Email sending failed: {error_msg}'}), 500
         
     except Exception as e:
         print(f"❌ Error in send_meeting_email: {e}")
@@ -585,6 +620,42 @@ def get_chat_history(session_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/debug/test-tts', methods=['POST'])
+def debug_test_tts():
+    """Debug TTS endpoint for testing."""
+    try:
+        data = request.get_json()
+        text = data.get('text', 'This is a test message.')
+        
+        print(f"🧪 Debug TTS request for text: {text}")
+        
+        # Generate TTS audio
+        audio_file = tts_service.generate_speech(text)
+        print(f"🔊 Generated audio file: {audio_file}")
+        
+        # Convert to relative path for audio serving
+        audio_filename = Path(audio_file).name
+        audio_url = f'/audio/temp/{audio_filename}'
+        
+        print(f"📍 Audio URL: {audio_url}")
+        print(f"📁 Audio file exists: {Path(audio_file).exists()}")
+        print(f"📏 Audio file size: {Path(audio_file).stat().st_size if Path(audio_file).exists() else 'N/A'} bytes")
+        
+        return jsonify({
+            'success': True,
+            'audio_url': audio_url,
+            'audio_file_path': str(audio_file),
+            'audio_filename': audio_filename,
+            'file_exists': Path(audio_file).exists(),
+            'message': 'Debug TTS audio generated successfully'
+        })
+        
+    except Exception as e:
+        print(f"❌ Debug TTS Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/debug/sessions', methods=['GET'])
 def debug_sessions():
     """Debug endpoint to check active sessions."""
@@ -625,6 +696,60 @@ def create_test_session():
         
     except Exception as e:
         print(f"Debug test session error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/debug/test-email', methods=['POST'])
+def debug_test_email():
+    """Debug endpoint to test email configuration."""
+    try:
+        data = request.get_json()
+        test_recipients = data.get('recipients', ['test@example.com'])
+        
+        print(f"🧪 Debug email test for recipients: {test_recipients}")
+        
+        # Test email service connection first
+        print(f"🔄 Testing email connection...")
+        connection_test = meeting_assistant.email_service.test_connection()
+        print(f"📧 Connection test result: {connection_test}")
+        
+        if not connection_test:
+            return jsonify({
+                'success': False,
+                'error': 'Email service connection failed',
+                'message': 'Check email configuration in config.py'
+            }), 500
+        
+        # Try to send a test email
+        test_pdf_path = Path(Config.OUTPUT_FOLDER) / 'test_transcript.txt'  # Use transcript as test file
+        if not test_pdf_path.exists():
+            return jsonify({
+                'success': False,
+                'error': 'Test file not found',
+                'message': 'No test file available for email test'
+            }), 404
+        
+        print(f"🔄 Sending test email...")
+        email_result = meeting_assistant.email_service.send_meeting_minutes(
+            recipients=test_recipients,
+            pdf_file_path=str(test_pdf_path),
+            meeting_title="Test Email",
+            meeting_date="2025-01-15",
+            custom_message="This is a test email from ConverSync."
+        )
+        
+        print(f"📧 Test email result: {email_result}")
+        
+        return jsonify({
+            'success': email_result.get('success', False),
+            'message': email_result.get('message', 'Unknown result'),
+            'email_result': email_result,
+            'connection_test': connection_test
+        })
+        
+    except Exception as e:
+        print(f"❌ Debug email test error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 def main():

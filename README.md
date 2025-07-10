@@ -32,16 +32,26 @@ conversync/
 │   ├── tts_service.py        # Text-to-Speech with Groq TTS
 │   ├── pdf_service.py        # PDF generation
 │   └── email_service.py      # Email functionality
+├── frontend/                 # React frontend with TypeScript
+│   ├── src/
+│   │   ├── components/       # React components
+│   │   ├── services/         # API service layer
+│   │   ├── types/           # TypeScript type definitions
+│   │   ├── App.tsx          # Main React application
+│   │   └── main.tsx         # React entry point
+│   ├── dist/                # Built frontend assets (auto-generated)
+│   ├── package.json         # Node.js dependencies
+│   ├── vite.config.ts       # Vite configuration
+│   └── tailwind.config.js   # Tailwind CSS configuration
 ├── uploads/                  # Upload directory (created automatically)
 ├── outputs/                  # Output directory (created automatically)
 ├── temp/                     # Temporary files & TTS audio (created automatically)
-├── frontend/                 # Web interface
-│   └── app.html             # Interactive chat interface with voice features
 ├── .env                      # Environment variables
 ├── .env.example              # Environment variables template
 ├── requirements.txt          # Python dependencies
+├── setup.bat                 # Windows setup script
+├── setup.sh                  # Unix/Linux setup script
 ├── example_usage.py          # Usage examples
-├── backend_funcs.py          # Original functions (deprecated)
 └── README.md                 # This file
 ```
 
@@ -53,19 +63,42 @@ conversync/
    cd conversync
    ```
 
-2. **Install dependencies**:
+2. **Quick Setup (Recommended)**:
+   
+   **Windows:**
+   ```cmd
+   setup.bat
+   ```
+   
+   **Unix/Linux/Mac:**
+   ```bash
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+
+3. **Manual Setup**:
+
+   **Backend Dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up environment variables**:
+   **Frontend Dependencies:**
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   cd ..
+   ```
+
+4. **Set up environment variables**:
    - Copy `.env.example` to `.env`
    - Fill in your API keys and email configuration:
    ```bash
    cp .env.example .env
    ```
 
-4. **Configure your `.env` file**:
+5. **Configure your `.env` file**:
    ```env
    # API Keys
    GROQ_API_KEY=your_groq_api_key_here
@@ -171,30 +204,40 @@ print(f"PDF generated: {results['pdf_file']}")
      http://localhost:5000/process-transcript
    ```
 
-### Interactive Chat Interface
+### Interactive Web Interface
 
-ConverSync now includes a web-based chat interface with voice capabilities:
+ConverSync now features a modern React-based web interface with real-time chat capabilities:
 
 1. **Start the server**:
    ```bash
    python api/flask_app.py
    ```
 
-2. **Open the web interface**:
+2. **Access the web interface**:
    ```
    http://localhost:5000
    ```
 
 3. **Features**:
-   - Upload meeting recordings for processing
-   - Interactive chat about meeting content
-   - Text-to-speech responses using high-quality Groq TTS
-   - Generate PDFs and send emails directly from chat
-   - Automatic session cleanup and file management
+   - **Modern React UI**: Built with TypeScript, Tailwind CSS, and Framer Motion
+   - **File Upload**: Drag-and-drop support for video and audio files
+   - **Real-time Processing**: Live progress indicators during transcription
+   - **Interactive Chat**: Ask questions about meeting content with AI responses
+   - **Voice Features**: Text-to-speech responses using high-quality Groq TTS
+   - **PDF Generation**: Create and download professional meeting minutes
+   - **Email Integration**: Send meeting minutes directly to participants
+   - **Responsive Design**: Works seamlessly on desktop and mobile devices
 
-4. **Voice Features**:
-   - **Text-to-Speech**: Toggle the speaker button to hear responses
-   - **Fallback Support**: Automatic fallback between Web Speech API and server-side processing
+4. **Development Mode** (for frontend development):
+   ```bash
+   # Terminal 1: Start backend
+   python api/flask_app.py
+   
+   # Terminal 2: Start frontend dev server with hot reload
+   cd frontend
+   npm run dev
+   # Access at http://localhost:3000
+   ```
 
 ## API Reference
 
@@ -403,17 +446,50 @@ The application includes comprehensive error handling:
 
 ## Development
 
-### Running Tests
+### Frontend Development
+The React frontend is built with modern tools and practices:
+
+- **React 18** with TypeScript for type safety
+- **Vite** for fast development and building
+- **Tailwind CSS** for utility-first styling
+- **Framer Motion** for smooth animations
+- **Lucide React** for consistent icons
+
+**Development Commands:**
 ```bash
-python example_usage.py
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server (with hot reload)
+npm run dev
+
+# Build for production
+npm run build
+
+# Lint code
+npm run lint
 ```
 
-### Development Server
+### Backend Development
+The Flask backend provides REST API endpoints and handles all AI processing:
+
+**Development Server:**
 ```bash
 python api/flask_app.py
 ```
 
-The Flask development server will run on `http://localhost:5000` with debug mode enabled.
+**Running Tests:**
+```bash
+python example_usage.py
+```
+
+### Architecture
+- **Frontend**: React SPA that communicates with backend via REST API
+- **Backend**: Flask server handling file processing, AI interactions, and session management
+- **API Layer**: RESTful API with clear separation between frontend and backend
+- **Development Proxy**: Vite dev server proxies API calls to Flask backend during development
 
 ## Supported File Formats
 

@@ -8,12 +8,18 @@ class EmailService:
     """Service for sending emails with attachments."""
     
     def __init__(self):
-        Config.validate_config()
-        self.smtp_server = Config.SMTP_SERVER
-        self.smtp_port = Config.SMTP_PORT
-        self.sender_email = Config.SENDER_EMAIL
-        self.sender_name = Config.SENDER_NAME
-        self.app_password = Config.APP_PASSWORD
+        try:
+            Config.validate_config()
+            self.smtp_server = Config.SMTP_SERVER
+            self.smtp_port = Config.SMTP_PORT
+            self.sender_email = Config.SENDER_EMAIL
+            self.sender_name = Config.SENDER_NAME
+            self.app_password = Config.APP_PASSWORD
+            self.config_valid = True
+        except ValueError as e:
+            print(f"⚠️  Email configuration not complete: {e}")
+            self.config_valid = False
+            self.config_error = str(e)
     
     def send_email_with_pdf(self, pdf_path: str, 
                            recipients: List[str],
@@ -170,6 +176,11 @@ class EmailService:
         Returns:
             bool: True if email sent successfully, False otherwise
         """
+        
+        if not self.config_valid:
+            print(f"❌ Email configuration incomplete: {getattr(self, 'config_error', 'Unknown error')}")
+            return False
+        
         # Create customized subject
         if meeting_title and meeting_date:
             subject = f"Meeting Minutes: {meeting_title} - {meeting_date}"
@@ -215,6 +226,13 @@ class EmailService:
             dict: Result dictionary with success status and details
         """
         try:
+            if not self.config_valid:
+                return {
+                    'success': False,
+                    'error': f'Email configuration incomplete: {getattr(self, "config_error", "Unknown error")}',
+                    'message': 'Please set up email configuration in .env file'
+                }
+            
             success = self.send_meeting_summary(
                 pdf_path=pdf_file_path,
                 recipients=recipients,
@@ -246,6 +264,10 @@ class EmailService:
             bool: True if connection successful, False otherwise
         """
         try:
+            if not self.config_valid:
+                print(f"❌ Email configuration incomplete: {getattr(self, 'config_error', 'Unknown error')}")
+                return False
+                
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as smtp:
                 smtp.starttls()
                 smtp.login(self.sender_email, self.app_password)
