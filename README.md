@@ -4,14 +4,50 @@ A comprehensive meeting assistant that automatically processes meeting recording
 
 ## Features
 
-- **Video to Audio Conversion**: Convert MP4 videos to MP3 audio files
-- **Audio Transcription**: Transcribe audio using Groq's Whisper API
-- **Text-to-Speech**: High-quality voice synthesis using Groq TTS with browser fallback
-- **AI Summarization**: Generate structured meeting summaries using Google's Gemini AI
-- **Interactive Chat**: Ask questions about meeting content with voice input/output
-- **PDF Generation**: Create professional meeting minutes PDFs
-- **Email Integration**: Automatically send meeting minutes to participants
-- **RESTful API**: Flask-based API for web application integration
+- **Convert Meeting Videos to Audio**  
+  Upload a recorded meeting video, and the assistant will extract just the audio so it can be processed more efficiently.
+
+- **Turn Speech into Text**  
+  Automatically transcribes the spoken words from the audio into written text, making it easier to review and search through the conversation.
+
+- **Read Aloud Responses**  
+  The assistant can respond using a natural-sounding voice, allowing for a more interactive and accessible experience.
+
+- **Summarize the Meeting**  
+  Understands the full meeting conversation and generates a clear, organized summary with key points, decisions, and action items.
+
+- **Ask Follow-up Questions**  
+  Users can ask questions like “What were the main action items?” or “Who discussed the deadline?” and receive accurate answers from the meeting content.
+
+- **Create a PDF Summary**  
+  Produces a polished and professional PDF document that includes all important meeting details for recordkeeping or sharing.
+
+- **Send Summaries by Email**  
+  Automatically emails the generated summary to selected participants, ensuring everyone stays informed.
+
+- **Accessible Through a Web App**  
+  Everything is available through a user-friendly website — no special software or installation required.
+
+## System Architecture
+
+![System Architecture](architecture.jpg)
+
+## Tech Stack
+
+| Feature                      | Technology / Tool                               |
+|-----------------------------|--------------------------------------------------|
+| Orchestration               | Moviepy Editor                                   |
+| Video to Audio Conversion   | Moviepy Editor                                   |
+| Audio Transcription         | Whisper Large v3-Turbo using Groq API            |
+| AI Summarization            | Gemini 2.5 Flash API                             |
+| Text-to-Speech              | PlayAI TTS via Groq API with browser fallback    |
+| PDF Generation              | ReportLab                                        |
+| Email Integration           | SMTP Protocol Client                             |
+| Interactive Chat            | Custom chat logic + LangChain memory             |
+| RESTful API                 | Flask                                            |
+| Frontend                    | React.js                                         |
+| Containerization            | Docker                                           |
+
 
 ## Project Structure
 
