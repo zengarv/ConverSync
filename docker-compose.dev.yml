@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  conversync:
+    build:
+      target: development  # We can add a development stage later if needed
+    volumes:
+      # Mount source code for development
+      - .:/app
+      - /app/node_modules  # Prevent overwriting node_modules
+      - /app/frontend/node_modules
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    ports:
+      - "5000:5000"
+      - "3000:3000"  # For frontend dev server if needed
+    command: python api/flask_app.py
+
+  # Optional: Separate development frontend service
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    command: npm run dev
+    profiles:
+      - frontend-dev

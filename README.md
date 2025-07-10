@@ -36,7 +36,6 @@ A comprehensive meeting assistant that automatically processes meeting recording
 
 | Feature                      | Technology / Tool                               |
 |-----------------------------|--------------------------------------------------|
-| Orchestration               | LangChain Orechestrator                          |
 | Video to Audio Conversion   | Moviepy Editor                                   |
 | Audio Transcription         | Whisper Large v3-Turbo using Groq API            |
 | AI Summarization            | Gemini 2.5 Flash API                             |
@@ -47,6 +46,8 @@ A comprehensive meeting assistant that automatically processes meeting recording
 | Chat Memory                 | LangChain ConversationBufferMemory               |
 | RESTful API                 | Flask                                            |
 | Frontend                    | React.js                                         |
+| CSS                         | Tailwind                                         |
+| Animation                   | Framer-Motion                                    |
 | Containerization            | Docker                                           |
 
 
@@ -93,6 +94,51 @@ conversync/
 ```
 
 ## Installation
+
+### Option 1: Docker (Recommended)
+
+The easiest way to run ConverSync is using Docker. This method handles all dependencies automatically and ensures consistent behavior across different systems.
+
+**Prerequisites:**
+- Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+- Docker Compose
+
+**Quick Start:**
+```bash
+# Clone the repository
+git clone <repository-url>
+cd conversync
+
+# Run the setup script
+# Windows:
+docker-setup.bat
+
+# Unix/Linux/Mac:
+chmod +x docker-setup.sh
+./docker-setup.sh
+```
+
+**Manual Docker Setup:**
+```bash
+# Create environment file
+cp .env.example .env
+# Edit .env with your API keys
+
+# Build and start the application
+docker-compose up --build
+
+# Access the application at http://localhost:5000
+```
+
+**Development Mode:**
+```bash
+# For development with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+For detailed Docker instructions, see [DOCKER.md](DOCKER.md).
+
+### Option 2: Traditional Setup
 
 1. **Clone the repository**:
    ```bash

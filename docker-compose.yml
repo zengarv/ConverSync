@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  conversync:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      # Copy from .env file - these are defaults, override with .env
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SENDER_EMAIL=${SENDER_EMAIL}
+      - SENDER_NAME=${SENDER_NAME:-conversync}
+      - APP_PASSWORD=${APP_PASSWORD}
+      - GROQ_MODEL=${GROQ_MODEL:-whisper-large-v3-turbo}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - UPLOAD_FOLDER=${UPLOAD_FOLDER:-uploads}
+      - OUTPUT_FOLDER=${OUTPUT_FOLDER:-outputs}
+      - TEMP_FOLDER=${TEMP_FOLDER:-temp}
+      - COMPANY_NAME=${COMPANY_NAME:-Your Company Name}
+      - LOGO_PATH=${LOGO_PATH:-assets/logo.png}
+    volumes:
+      # Persist uploads, outputs, and temp directories
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./temp:/app/temp
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # For SSL certificates
+    depends_on:
+      - conversync
+    restart: unless-stopped
+    profiles:
+      - production  # Only start with: docker-compose --profile production up
