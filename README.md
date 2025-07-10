@@ -1,6 +1,6 @@
 # ConverSync - Meeting Assistant
 
-A comprehensive meeting assistant that automatically processes meeting recordings, generates transcripts, creates summaries, and emails minutes of the meeting to participants.
+A comprehensive meeting assistant that automatically processes meeting recordings, generates transcripts, creates summaries, and emails minutes of the meeting to participants. [Demo Link](https://drive.google.com/file/d/1o6KV-x1crk5B12slP51KfcZy3qRjBaBq/view?usp=sharing)
 
 ## Features
 
