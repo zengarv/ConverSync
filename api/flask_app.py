@@ -7,6 +7,77 @@ import json
 from datetime import datetime
 import uuid
 
+# Simple conversation memory implementation (will upgrade to LangChain later)
+class ConversationMemory:
+    """Simple conversation memory management."""
+    
+    def __init__(self, max_messages=20):
+        self.messages = []
+        self.max_messages = max_messages
+    
+    def add_user_message(self, message):
+        """Add a user message to memory."""
+        self.messages.append({
+            'type': 'user',
+            'content': message,
+            'timestamp': datetime.now().isoformat()
+        })
+        self._trim_memory()
+    
+    def add_ai_message(self, message):
+        """Add an AI response to memory."""
+        self.messages.append({
+            'type': 'ai',
+            'content': message,
+            'timestamp': datetime.now().isoformat()
+        })
+        self._trim_memory()
+    
+    def get_conversation_history(self):
+        """Get formatted conversation history for context."""
+        history = []
+        for msg in self.messages:
+            if msg['type'] == 'user':
+                history.append(f"Human: {msg['content']}")
+            else:
+                history.append(f"Assistant: {msg['content']}")
+        return "\n".join(history)
+    
+    def get_recent_context(self, num_messages=10):
+        """Get recent conversation context."""
+        recent = self.messages[-num_messages:] if len(self.messages) > num_messages else self.messages
+        context = []
+        for msg in recent:
+            if msg['type'] == 'user':
+                context.append(f"Human: {msg['content']}")
+            else:
+                context.append(f"Assistant: {msg['content']}")
+        return "\n".join(context)
+    
+    def _trim_memory(self):
+        """Keep memory within limits."""
+        if len(self.messages) > self.max_messages:
+            # Keep the first few messages for context and trim the middle
+            self.messages = self.messages[:2] + self.messages[-(self.max_messages-2):]
+    
+    def clear(self):
+        """Clear conversation memory."""
+        self.messages = []
+    
+    def to_dict(self):
+        """Convert memory to dictionary for storage."""
+        return {
+            'messages': self.messages,
+            'max_messages': self.max_messages
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        """Create memory from dictionary."""
+        memory = cls(max_messages=data.get('max_messages', 20))
+        memory.messages = data.get('messages', [])
+        return memory
+
 from api.meeting_assistant import MeetingAssistant
 from services.tts_service import TTSService
 from config import Config
@@ -21,7 +92,7 @@ meeting_assistant = MeetingAssistant()
 # Initialize TTS service
 tts_service = TTSService()
 
-# Store active chat sessions
+# Store active chat sessions with conversation memory
 chat_sessions = {}
 
 # Allowed file extensions
@@ -71,6 +142,11 @@ def api_info():
         'version': '1.0.0',
         'frontend_url': 'http://localhost:5000/',
         'frontend_type': 'React with Vite',
+        'features': {
+            'conversation_memory': 'Enhanced conversation context using memory management',
+            'meeting_analysis': 'AI-powered meeting transcript analysis',
+            'multi_format_support': 'Video, audio, and text processing'
+        },
         'endpoints': {
             'health': '/health',
             'process_video': '/process-video',
@@ -79,6 +155,10 @@ def api_info():
             'transcribe': '/transcribe-only',
             'chat_start': '/chat/start',
             'chat_message': '/chat/{session_id}/message',
+            'chat_history': '/chat/{session_id}/history',
+            'chat_memory': '/chat/{session_id}/memory',
+            'chat_memory_clear': '/chat/{session_id}/memory/clear',
+            'chat_memory_summary': '/chat/{session_id}/memory/summary',
             'generate_pdf': '/chat/{session_id}/generate-minutes',
             'send_email': '/chat/{session_id}/send-email',
             'tts': '/chat/{session_id}/tts',
@@ -366,15 +446,20 @@ def start_chat_session():
         # Generate session ID
         session_id = str(uuid.uuid4())
         
-        # Store session data
+        # Initialize conversation memory
+        memory = ConversationMemory(max_messages=30)  # Store up to 30 messages
+        
+        # Store session data with memory
         chat_sessions[session_id] = {
             'transcript': data['transcript'],
             'created_at': datetime.now().isoformat(),
-            'messages': []
+            'memory': memory,
+            'messages': []  # Keep for backward compatibility
         }
         
         print(f"✅ Created new chat session: {session_id}")
         print(f"📝 Session has transcript of length: {len(data['transcript'])}")
+        print(f"🧠 Initialized conversation memory with max {memory.max_messages} messages")
         
         return jsonify({
             'success': True,
@@ -397,40 +482,66 @@ def send_chat_message(session_id):
             return jsonify({'error': 'No message provided'}), 400
         
         user_message = data['message']
-        transcript = chat_sessions[session_id]['transcript']
+        session_data = chat_sessions[session_id]
+        transcript = session_data['transcript']
+        memory = session_data['memory']
         
-        # Create context-aware prompt
+        # Add user message to memory
+        memory.add_user_message(user_message)
+        
+        # Get conversation history for context
+        conversation_history = memory.get_recent_context(num_messages=10)
+        
+        # Create enhanced context-aware prompt with conversation history
         context_prompt = f"""
-        You are a helpful AI assistant. You have access to the transcript of a recent meeting, but you can also answer general questions and have normal conversations.
+        You are a helpful AI assistant with access to a meeting transcript and the ongoing conversation history.
         
-        If the user's question is related to the meeting, please provide a detailed answer based on the meeting content.
-        If the user's question is not related to the meeting, feel free to answer it as a helpful AI assistant would.
+        **Instructions:**
+        - If the user's question is related to the meeting, provide detailed answers based on the meeting content
+        - If the question is general, answer as a knowledgeable AI assistant
+        - Use the conversation history to maintain context and provide coherent responses
+        - Reference previous parts of our conversation when relevant
         
-        Meeting Transcript (for reference):
+        **Meeting Transcript:**
         {transcript}
         
-        User Message: {user_message}
+        **Recent Conversation History:**
+        {conversation_history}
         
-        Please provide a helpful response. If the question is about the meeting, use the transcript above. Otherwise, answer as a knowledgeable AI assistant:
+        **Current User Message:** {user_message}
+        
+        Please provide a helpful response that takes into account both the meeting content and our conversation history:
         """
+        
+        print(f"🔄 Processing message for session {session_id}")
+        print(f"📝 User message: {user_message[:100]}...")
+        print(f"🧠 Using {len(memory.messages)} messages from conversation history")
         
         # Get response from Gemini
         bot_response = meeting_assistant.summarization_service._gpt(context_prompt)
         
-        # Store conversation
-        chat_sessions[session_id]['messages'].append({
+        # Add bot response to memory
+        memory.add_ai_message(bot_response)
+        
+        # Store conversation in old format for backward compatibility
+        session_data['messages'].append({
             'user': user_message,
             'bot': bot_response,
             'timestamp': datetime.now().isoformat()
         })
         
+        print(f"✅ Generated response for session {session_id}")
+        print(f"🧠 Memory now contains {len(memory.messages)} total messages")
+        
         return jsonify({
             'success': True,
             'response': bot_response,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'conversation_length': len(memory.messages)
         })
         
     except Exception as e:
+        print(f"❌ Error in send_chat_message: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/chat/<session_id>/generate-minutes', methods=['POST'])
@@ -611,11 +722,28 @@ def get_chat_history(session_id):
         if session_id not in chat_sessions:
             return jsonify({'error': 'Invalid or expired session'}), 404
         
-        return jsonify({
+        session_data = chat_sessions[session_id]
+        memory = session_data.get('memory')
+        
+        # Return both old format and new memory format
+        response_data = {
             'success': True,
-            'messages': chat_sessions[session_id]['messages'],
-            'created_at': chat_sessions[session_id]['created_at']
-        })
+            'created_at': session_data['created_at'],
+            'messages': session_data['messages'],  # Backward compatibility
+        }
+        
+        # Add memory-based conversation history if available
+        if memory:
+            response_data.update({
+                'conversation_memory': {
+                    'total_messages': len(memory.messages),
+                    'max_messages': memory.max_messages,
+                    'conversation_history': memory.get_conversation_history(),
+                    'recent_context': memory.get_recent_context(5)
+                }
+            })
+        
+        return jsonify(response_data)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -659,10 +787,31 @@ def debug_test_tts():
 @app.route('/debug/sessions', methods=['GET'])
 def debug_sessions():
     """Debug endpoint to check active sessions."""
+    sessions_detail = {}
+    for k, v in chat_sessions.items():
+        memory = v.get('memory')
+        detail = {
+            'created_at': v['created_at'], 
+            'transcript_length': len(v['transcript']), 
+            'message_count': len(v['messages'])
+        }
+        
+        # Add memory information if available
+        if memory:
+            detail.update({
+                'memory_messages': len(memory.messages),
+                'memory_max': memory.max_messages,
+                'has_conversation_memory': True
+            })
+        else:
+            detail['has_conversation_memory'] = False
+            
+        sessions_detail[k] = detail
+    
     return jsonify({
         'active_sessions': list(chat_sessions.keys()),
         'session_count': len(chat_sessions),
-        'sessions_detail': {k: {'created_at': v['created_at'], 'transcript_length': len(v['transcript']), 'message_count': len(v['messages'])} for k, v in chat_sessions.items()}
+        'sessions_detail': sessions_detail
     })
 
 @app.route('/debug/create-test-session', methods=['POST'])
@@ -677,21 +826,29 @@ def create_test_session():
         with open(test_transcript_path, 'r', encoding='utf-8') as f:
             transcript = f.read()
         
-        # Create a new chat session with the test transcript
+        # Create a new chat session with the test transcript and memory
         session_id = str(uuid.uuid4())
+        memory = ConversationMemory(max_messages=25)
+        
         chat_sessions[session_id] = {
             'transcript': transcript,
+            'memory': memory,
             'messages': [],
             'created_at': datetime.now().isoformat()
         }
         
         print(f"✅ Created debug test session: {session_id}")
+        print(f"🧠 Initialized with conversation memory (max {memory.max_messages} messages)")
         
         return jsonify({
             'success': True,
             'session_id': session_id,
             'transcript': transcript,
-            'message': 'Debug test session created successfully'
+            'memory_info': {
+                'max_messages': memory.max_messages,
+                'current_messages': len(memory.messages)
+            },
+            'message': 'Debug test session created successfully with conversation memory'
         })
         
     except Exception as e:
@@ -750,6 +907,94 @@ def debug_test_email():
         print(f"❌ Debug email test error: {str(e)}")
         import traceback
         traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/chat/<session_id>/memory', methods=['GET'])
+def get_conversation_memory(session_id):
+    """Get detailed conversation memory for a session."""
+    try:
+        if session_id not in chat_sessions:
+            return jsonify({'error': 'Invalid or expired session'}), 404
+        
+        session_data = chat_sessions[session_id]
+        memory = session_data.get('memory')
+        
+        if not memory:
+            return jsonify({'error': 'No conversation memory found for this session'}), 404
+        
+        return jsonify({
+            'success': True,
+            'memory_info': {
+                'total_messages': len(memory.messages),
+                'max_messages': memory.max_messages,
+                'conversation_history': memory.get_conversation_history(),
+                'recent_context': memory.get_recent_context(10),
+                'messages': memory.messages
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/chat/<session_id>/memory/clear', methods=['POST'])
+def clear_conversation_memory(session_id):
+    """Clear conversation memory for a session."""
+    try:
+        if session_id not in chat_sessions:
+            return jsonify({'error': 'Invalid or expired session'}), 404
+        
+        session_data = chat_sessions[session_id]
+        memory = session_data.get('memory')
+        
+        if not memory:
+            return jsonify({'error': 'No conversation memory found for this session'}), 404
+        
+        messages_before = len(memory.messages)
+        memory.clear()
+        
+        print(f"🧠 Cleared conversation memory for session {session_id}")
+        print(f"📝 Removed {messages_before} messages from memory")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Conversation memory cleared. Removed {messages_before} messages.',
+            'messages_removed': messages_before
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/chat/<session_id>/memory/summary', methods=['GET'])
+def get_memory_summary(session_id):
+    """Get a summary of the conversation memory."""
+    try:
+        if session_id not in chat_sessions:
+            return jsonify({'error': 'Invalid or expired session'}), 404
+        
+        session_data = chat_sessions[session_id]
+        memory = session_data.get('memory')
+        
+        if not memory:
+            return jsonify({'error': 'No conversation memory found for this session'}), 404
+        
+        # Count message types
+        user_messages = sum(1 for msg in memory.messages if msg['type'] == 'user')
+        ai_messages = sum(1 for msg in memory.messages if msg['type'] == 'ai')
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total_messages': len(memory.messages),
+                'user_messages': user_messages,
+                'ai_messages': ai_messages,
+                'max_capacity': memory.max_messages,
+                'memory_usage_percent': round((len(memory.messages) / memory.max_messages) * 100, 1),
+                'session_created': session_data['created_at'],
+                'has_recent_activity': len(memory.messages) > 0
+            }
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 def main():

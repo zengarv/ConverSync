@@ -7,3 +7,5 @@ reportlab==4.0.4
 python-dotenv==1.0.0
 werkzeug==2.3.7
 pathlib2==2.3.7.post1
+langchain==0.3.26
+langchain-community==0.3.27

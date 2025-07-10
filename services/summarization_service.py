@@ -115,67 +115,6 @@ class SummarizationService:
             print("🔄 Using fallback summary generation...")
             return self.generate_fallback_summary(transcript)
         
-        # Meeting Agenda & Timeline
-        agenda_prompt = f"""
-        Based on the following meeting transcript, extract and organize the agenda items and timeline.
-        List the main topics discussed in chronological order.
-        
-        Transcript:
-        {transcript}
-        
-        Provide a structured agenda/timeline:
-        """
-        sections["Agenda & Timeline"] = self._gpt(agenda_prompt)
-        
-        # Key Speaker Points
-        speakers_prompt = f"""
-        From the following meeting transcript, identify key speakers and their main contributions.
-        Summarize the important points made by each speaker.
-        
-        Transcript:
-        {transcript}
-        
-        Provide key speaker points:
-        """
-        sections["Key Speaker Points"] = self._gpt(speakers_prompt)
-        
-        # Decisions Made
-        decisions_prompt = f"""
-        Extract all decisions that were made during this meeting from the transcript.
-        List them clearly with any relevant context.
-        
-        Transcript:
-        {transcript}
-        
-        List all decisions made:
-        """
-        sections["Decisions Made"] = self._gpt(decisions_prompt)
-        
-        # Action Items
-        actions_prompt = f"""
-        Identify all action items assigned during this meeting from the transcript.
-        Include who is responsible for each action and any deadlines mentioned.
-        
-        Transcript:
-        {transcript}
-        
-        List all action items:
-        """
-        sections["Action Items"] = self._gpt(actions_prompt)
-        
-        # Follow-ups
-        followup_prompt = f"""
-        Extract any follow-up meetings, future discussions, or pending items mentioned in the transcript.
-        Include any scheduled dates or deadlines.
-        
-        Transcript:
-        {transcript}
-        
-        List follow-up items:
-        """
-        sections["Follow-up Items"] = self._gpt(followup_prompt)
-        
-        return sections
     
     def generate_custom_summary(self, transcript: str, custom_prompt: str) -> str:
         """
