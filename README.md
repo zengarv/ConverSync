@@ -28,6 +28,9 @@ A comprehensive meeting assistant that automatically processes meeting recording
 - **Accessible Through a Web App**  
   Everything is available through a user-friendly website — no special software or installation required.
 
+## System Architecture
+
+![System Architecture](architecture.jpg)
 
 ## Tech Stack
 
