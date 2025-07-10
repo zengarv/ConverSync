@@ -47,7 +47,7 @@ const HeroSection = ({ onFileUpload, onDebugTest, uploadProgress }: HeroSectionP
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
       {/* Animated gradient background */}
       <motion.div
         className="absolute inset-0 bg-gradient-radial from-purple-500/20 via-transparent to-transparent"
@@ -187,7 +187,7 @@ const HeroSection = ({ onFileUpload, onDebugTest, uploadProgress }: HeroSectionP
             </motion.div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col space-y-3">
+            <div className="flex flex-col items-center justify-center space-y-3">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -219,7 +219,7 @@ const HeroSection = ({ onFileUpload, onDebugTest, uploadProgress }: HeroSectionP
                 )}
               </motion.button>
 
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={onDebugTest}
@@ -227,7 +227,7 @@ const HeroSection = ({ onFileUpload, onDebugTest, uploadProgress }: HeroSectionP
               >
                 <Play className="w-4 h-4" />
                 <span>Demo Mode</span>
-              </motion.button>
+              </motion.button> */}
             </div>
           </div>
         </div>

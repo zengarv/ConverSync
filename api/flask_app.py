@@ -494,7 +494,7 @@ def send_chat_message(session_id):
         
         # Create enhanced context-aware prompt with conversation history
         context_prompt = f"""
-        You are a helpful AI assistant with access to a meeting transcript and the ongoing conversation history.
+        Your name is ConverSync, and you are a helpful AI meeting assistant with access to a transcript and the ongoing conversation history.
         
         **Instructions:**
         - If the user's question is related to the meeting, provide detailed answers based on the meeting content
