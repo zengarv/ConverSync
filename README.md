@@ -36,14 +36,15 @@ A comprehensive meeting assistant that automatically processes meeting recording
 
 | Feature                      | Technology / Tool                               |
 |-----------------------------|--------------------------------------------------|
-| Orchestration               | Moviepy Editor                                   |
+| Orchestration               | LangChain Orechestrator                          |
 | Video to Audio Conversion   | Moviepy Editor                                   |
 | Audio Transcription         | Whisper Large v3-Turbo using Groq API            |
 | AI Summarization            | Gemini 2.5 Flash API                             |
 | Text-to-Speech              | PlayAI TTS via Groq API with browser fallback    |
 | PDF Generation              | ReportLab                                        |
 | Email Integration           | SMTP Protocol Client                             |
-| Interactive Chat            | Custom chat logic + LangChain memory             |
+| Interactive Chat            | Gemini API                                       |
+| Chat Memory                 | LangChain ConversationBufferMemory               |
 | RESTful API                 | Flask                                            |
 | Frontend                    | React.js                                         |
 | Containerization            | Docker                                           |
