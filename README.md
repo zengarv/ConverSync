@@ -9,7 +9,7 @@ A comprehensive meeting assistant that automatically processes meeting recording
 
 - **Turn Speech into Text**  
   Automatically transcribes the spoken words from the audio into written text, making it easier to review and search through the conversation.
-
+  
 - **Read Aloud Responses**  
   The assistant can respond using a natural-sounding voice, allowing for a more interactive and accessible experience.
 
